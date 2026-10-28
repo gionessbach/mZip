@@ -101,6 +101,14 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 .qa.dark{background:var(--ink);color:var(--on-ink)}
 .goal{text-align:center;font-weight:800;color:var(--ink-soft);margin:18px 0 0;font-size:16px;font-variant-numeric:tabular-nums}
 
+/* Spielstand */
+.link-btn{align-self:center;font-weight:800;font-size:16px;color:var(--ink-soft);text-decoration:underline;text-underline-offset:4px;padding:6px 10px}
+.dialog .small{font-size:15px;font-weight:600;color:var(--ink-soft);line-height:1.45}
+.field-label{font-weight:800;font-size:14px;letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+.dialog textarea{font:600 14px/1.4 ui-monospace,Menlo,monospace;color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:14px;
+  padding:10px 12px;resize:none;width:100%;box-sizing:border-box;-webkit-user-select:text;user-select:text;word-break:break-all}
+.overlay .dialog{max-height:calc(100dvh - 48px);overflow-y:auto}
+
 /* Overlay & Toast */
 .overlay{position:fixed;inset:0;background:rgba(38,38,36,.5);display:grid;place-items:center;padding:24px;z-index:20}
 .dialog{background:var(--card);border-radius:30px;padding:28px;max-width:460px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.25);
@@ -203,6 +211,7 @@ body{margin:0;font-size:14px;overscroll-behavior:none;touch-action:manipulation;
         <div class="stat"><b id="solvedCount">0</b><span>Gelöst</span></div>
         <div class="stat"><b id="openCount">30</b><span>Offen</span></div>
       </div>
+      <button class="link-btn" id="saveBtn">Spielstand sichern &amp; laden</button>
     </div>
   </section>
 
@@ -270,6 +279,21 @@ body{margin:0;font-size:14px;overscroll-behavior:none;touch-action:manipulation;
   </div>
 </div>
 
+<div class="overlay" id="saveDlg" hidden>
+  <div class="dialog" role="dialog" aria-labelledby="saveH">
+    <h2 id="saveH">Spielstand</h2>
+    <p class="small">Dein Fortschritt bleibt auf diesem Gerät gespeichert, auch bei Updates mit neuen Leveln. Mit diesem Code kannst du ihn zusätzlich sichern oder auf ein anderes Gerät übertragen.</p>
+    <label class="field-label" for="saveOut">Dein Sicherungscode</label>
+    <textarea id="saveOut" readonly rows="3"></textarea>
+    <button class="btn dark" id="copySave">Code kopieren</button>
+    <label class="field-label" for="saveIn">Code einfügen und laden</label>
+    <textarea id="saveIn" rows="3" placeholder="MZIP1-…"></textarea>
+    <button class="btn outline" id="loadSave">Spielstand laden</button>
+    <p class="small" id="saveMsg" role="status"></p>
+    <button class="btn light" data-close>Schließen</button>
+  </div>
+</div>
+
 <div class="overlay" id="colors" hidden>
   <div class="dialog" role="dialog" aria-labelledby="colorsH">
     <h2 id="colorsH">Farbe der Linie</h2>
@@ -298,6 +322,8 @@ try { const s = JSON.parse(localStorage.getItem(KEY)); if(s) save = Object.assig
 if(save.color === "#e8740f") save.color = "#e0a800";
 delete save.fav; delete save.total;
 function persist(){ try { localStorage.setItem(KEY, JSON.stringify(save)); } catch(e){} }
+// Browser bitten, den Speicher nicht automatisch zu löschen
+try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e){}
 
 // ================= Level-Erzeugung =================
 const TIERS = [
@@ -433,8 +459,9 @@ function stopTimer(){ clearInterval(S.timer); S.timer = null; persist(); }
 function toast(msg){ const t=$("toast"); t.textContent=msg; t.hidden=false; clearTimeout(t._h); t._h=setTimeout(()=>t.hidden=true,2200); }
 
 function updateStart(){
-  $("solvedCount").textContent = save.solved.length;
-  $("openCount").textContent = LEVELS - save.solved.length;
+  let solved = 0; for(let l=1;l<=LEVELS;l++) if(isSolved(l)) solved++;
+  $("solvedCount").textContent = solved;
+  $("openCount").textContent = LEVELS - solved;
 }
 
 function openLevel(l){
@@ -560,9 +587,9 @@ function checkEnd(){
 
 function win(){
   S.won = true; stopTimer();
-  const l = S.level, prev = save.best[l];
-  if(!save.solved.includes(l)) save.solved.push(l);
-  if(prev == null || S.seconds < prev) save.best[l] = S.seconds;
+  const l = S.level, id = levelId(l), prev = bestOf(l);
+  if(!save.solved.includes(id)) save.solved.push(id);
+  if(prev == null || S.seconds < prev) save.best[id] = S.seconds;
   persist();
   $("winTime").textContent = fmt(S.seconds);
   $("winBest").textContent = prev == null ? `Level ${l} gelöst!` : S.seconds < prev ? `Neuer Rekord! Vorher ${fmt(prev)}.` : `Dein Rekord: ${fmt(prev)}`;
@@ -610,7 +637,7 @@ document.querySelectorAll("[data-night-btn]").forEach(b => b.onclick = () => {
 $("editBtn").onclick = () => toast("Der Level-Editor folgt");
 $("nextBtn").onclick = () => { $("win").hidden = true; openLevel(S.level+1); };
 $("toListBtn").onclick = () => { $("win").hidden = true; show("levels"); };
-$("startBtn").onclick = () => { let l = 1; while(l<LEVELS && save.solved.includes(l)) l++; openLevel(l); };
+$("startBtn").onclick = () => { let l = 1; while(l<LEVELS && isSolved(l)) l++; openLevel(l); };
 $("levelBtn").onclick = () => show("levels");
 $("infoBtn").onclick = $("helpBtn").onclick = () => $("rules").hidden = false;
 $("colorBtn").onclick = () => { buildSwatches(); $("colors").hidden = false; };
@@ -620,8 +647,8 @@ function buildLevels(){
   TIERS.forEach(t => {
     html += `<div class="tier">${t.name} · ${t.n}×${t.n}</div><div class="levels">`;
     for(let i=0;i<t.count;i++,l++){
-      const done = save.solved.includes(l);
-      const best = save.best[l];
+      const done = isSolved(l);
+      const best = bestOf(l);
       const bestHtml = best != null
         ? `<span class="best"><svg viewBox="0 0 24 24" style="fill:none;stroke:currentColor" stroke-width="3" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M10 2h4"/></svg>${fmt(best)}</span>`
         : `<span class="best" aria-hidden="true"> </span>`;
@@ -644,6 +671,61 @@ document.addEventListener("click", e => {
   if(e.target.classList.contains("overlay") && e.target.id!=="win") e.target.hidden = true;
 });
 document.addEventListener("visibilitychange", () => { if(document.hidden) persist(); });
+// ================= Spielstand: dauerhafte Level-Kennungen =================
+// Jedes Level bekommt eine Kennung aus seinem Inhalt. Fortschritt hängt an dieser Kennung,
+// nicht an der Level-Nummer – neue oder umsortierte Level verschieben also nichts.
+function hash(str){ let h = 0x811c9dc5; for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h>>>0).toString(36); }
+const IDS = PRESET.map(d => hash(d.join("|")));
+const levelId = l => IDS[l-1] || ("g" + l);
+const isSolved = l => save.solved.includes(levelId(l));
+const bestOf = l => save.best[levelId(l)];
+
+// Alte Spielstände (nach Level-Nummer gespeichert) einmalig umstellen
+if(!save.v || save.v < 2){
+  save.solved = (save.solved || []).map(x => typeof x === "number" ? levelId(x) : x);
+  const nb = {}; for(const k in (save.best || {})) nb[/^\d+$/.test(k) ? levelId(+k) : k] = save.best[k];
+  save.best = nb; save.v = 2; persist();
+}
+
+// Sicherungscode: Export und Import (Import führt zusammen, nichts geht verloren)
+function exportCode(){
+  const data = JSON.stringify({ s: save.solved, b: save.best });
+  return "MZIP1-" + btoa(unescape(encodeURIComponent(data)));
+}
+function importCode(code){
+  const m = String(code).trim().replace(/\s+/g, "").match(/^MZIP1-(.+)$/);
+  if(!m) throw new Error("format");
+  const data = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+  if(!Array.isArray(data.s) || typeof data.b !== "object") throw new Error("format");
+  let added = 0, faster = 0;
+  data.s.forEach(id => { if(typeof id === "string" && !save.solved.includes(id)){ save.solved.push(id); added++; } });
+  for(const id in data.b){
+    const t = data.b[id]; if(typeof t !== "number" || t < 0) continue;
+    if(save.best[id] == null){ save.best[id] = t; }
+    else if(t < save.best[id]){ save.best[id] = t; faster++; }
+  }
+  persist();
+  return { added, faster };
+}
+$("saveBtn").onclick = () => {
+  $("saveOut").value = exportCode(); $("saveIn").value = ""; $("saveMsg").textContent = "";
+  $("saveDlg").hidden = false;
+};
+$("copySave").onclick = () => {
+  const ta = $("saveOut"), done = () => $("saveMsg").textContent = "Code kopiert. Bewahre ihn z. B. in einer Notiz auf.";
+  const fallback = () => { ta.focus(); ta.select(); $("saveMsg").textContent = "Code ist markiert – jetzt über „Kopieren“ übernehmen."; };
+  try { navigator.clipboard.writeText(ta.value).then(done, fallback); } catch(e){ fallback(); }
+};
+$("loadSave").onclick = () => {
+  try {
+    const r = importCode($("saveIn").value);
+    $("saveMsg").textContent = `Geladen: ${r.added} Level neu als gelöst, ${r.faster} Bestzeiten verbessert.`;
+    $("saveOut").value = exportCode(); updateStart();
+  } catch(e){
+    $("saveMsg").textContent = "Der Code ist nicht gültig. Bitte den kompletten Code ab „MZIP1-“ einfügen.";
+  }
+};
+
 applyNight();
 updateStart();
 
