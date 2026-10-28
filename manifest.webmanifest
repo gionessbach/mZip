@@ -1,0 +1,17 @@
+{
+  "name": "mZip",
+  "short_name": "mZip",
+  "description": "Linienrätsel: Zahlen der Reihe nach verbinden und jedes Feld füllen.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fddd02",
+  "theme_color": "#fddd02",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
