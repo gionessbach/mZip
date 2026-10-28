@@ -116,6 +116,45 @@ button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 .toast{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--on-ink);
   padding:14px 22px;border-radius:16px;font-weight:800;z-index:30;max-width:calc(100% - 32px);text-align:center}
 @media (max-width:440px){.icon-btn{width:54px;height:54px}.qa{width:66px;height:66px}.btn{font-size:18px;padding:18px}.levels{grid-template-columns:repeat(4,1fr)}}
+/* ===== Bildschirmfüllendes Layout für iPad (hoch & quer) ===== */
+.app{max-width:1180px;padding-block:16px;box-sizing:border-box}
+#start,#levels,#game{width:100%;max-width:620px;margin-inline:auto}
+#game{max-width:820px}
+.logo{width:clamp(90px,15vh,150px)}
+.hero{padding:clamp(10px,3vh,28px) 0 clamp(14px,3.5vh,36px)}
+.hero h1{font-size:clamp(44px,8vh,80px)}
+.levels{grid-template-columns:repeat(auto-fill,minmax(88px,1fr))}
+
+#game{height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 32px);
+  display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto;
+  grid-template-areas:"top" "title" "board" "controls"}
+#game[hidden]{display:none}
+#game > .topbar{grid-area:top}
+.level-title{grid-area:title;margin:clamp(8px,2vh,22px) 0 clamp(8px,1.6vh,14px);font-size:clamp(24px,3.6vh,36px)}
+.board-area{grid-area:board;min-height:0;container-type:size;display:grid;place-items:center}
+.board-wrap{box-sizing:border-box;width:100%;width:min(100cqw,100cqh);aspect-ratio:1;max-width:100%}
+.board{width:100%;height:100%}
+.controls{grid-area:controls;min-width:0}
+.actions{margin-top:clamp(10px,2vh,22px)}
+.btn{padding-block:clamp(14px,2.2vh,22px)}
+.qa-head{margin:clamp(12px,2.4vh,26px) 0 clamp(8px,1.4vh,14px)}
+.qa{width:clamp(58px,7.5vh,84px);height:clamp(58px,7.5vh,84px)}
+.goal{margin-top:clamp(6px,1.4vh,18px)}
+
+@media (orientation:landscape) and (min-width:700px){
+  /* Start: Logo links, Menü rechts */
+  #start{max-width:1000px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;column-gap:40px;
+    min-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px) - 32px)}
+  #start[hidden]{display:none}
+  #start > .topbar{grid-column:1/-1}
+  #start .hero{align-self:center;padding:0}
+  #start .sheet{align-self:center;flex:none}
+  #levels{max-width:1000px}
+  /* Spiel: Feld links in voller Höhe, Bedienung rechts */
+  #game{max-width:none;grid-template-columns:minmax(0,1fr) minmax(320px,380px);grid-template-rows:auto auto 1fr;
+    grid-template-areas:"board top" "board title" "board controls";column-gap:32px}
+  .controls{align-self:center}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 /* Grundgerüst für die eigenständige App */
@@ -194,7 +233,8 @@ body{margin:0;font-size:14px;overscroll-behavior:none;touch-action:manipulation;
         <svg class="sun" hidden viewBox="0 0 24 24" style="fill:none;stroke:currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg></button>
     </div>
     <h2 class="level-title" id="levelTitle">Level 1</h2>
-    <div class="board-wrap"><div class="board" id="board"></div></div>
+    <div class="board-area"><div class="board-wrap"><div class="board" id="board"></div></div></div>
+    <div class="controls">
     <div class="actions">
       <button class="btn light" id="undoBtn">Zurück</button>
       <button class="btn dark" id="hintBtn"><span>Tipp (<span id="hints">2</span>)</span></button>
@@ -211,6 +251,7 @@ body{margin:0;font-size:14px;overscroll-behavior:none;touch-action:manipulation;
         <svg viewBox="0 0 24 24" style="fill:currentColor"><path d="M4 20l1-4.5L15.5 5a2 2 0 0 1 2.8 0l.7.7a2 2 0 0 1 0 2.8L8.5 19z"/></svg></button>
     </div>
     <p class="goal" id="goal">Von 1 bis zur höchsten Zahl – jedes Feld genau einmal.</p>
+    </div>
   </section>
 </div>
 
